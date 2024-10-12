@@ -2,146 +2,140 @@
 import importlib
 import os
 import sys
-from time import sleep
 
-import win32api
-import win32clipboard
-import win32con
+from pynput import keyboard,mouse
 import win32gui
-
-from pynput import keyboard
+import threading
+import win32clipboard
+from time import sleep
 
 #配置文件
 import bin.config as config
 
-#copy
-def send_copy_singal():
-    sleep(0.01)
-    win32api.keybd_event(0x12, 0, 0, 0) # press down Alt
-    sleep(0.01)
-    win32api.keybd_event(17, 0, 0, 0) # press down Ctrl
-    win32api.keybd_event(67, 0, 0, 0) # press down C
-    sleep(0.01)
-    win32api.keybd_event(17, 0, win32con.KEYEVENTF_KEYUP, 0) # release Ctrl
-    win32api.keybd_event(67, 0, win32con.KEYEVENTF_KEYUP, 0) # release C
-    sleep(0.01)
-    win32api.keybd_event(0x12, 0, win32con.KEYEVENTF_KEYUP, 0) # press down Alt
-
-
-def safe_paste():
-
-    got_data = False
-    while not got_data:
-        try:
-            win32clipboard.OpenClipboard()
-            data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
-            win32clipboard.CloseClipboard()
-            got_data = True
-
-        except Exception as e:
-            pass
-    return data
-
-def safe_clear():
-
-    clear = False
-    while not clear:
-        try:
-            win32clipboard.OpenClipboard()
-            win32clipboard.SetClipboardText('')
-            win32clipboard.CloseClipboard()
-            clear = True
-
-        except Exception as e:
-            pass
-
-def load_template():
-
-    print('')
-    print('# -------------------------- #')
-    print('加载 Craft 模板 ...')
-
-    if os.path.exists(config.TEMPLATES_DIR):
-
-        templates = [_ for _ in os.listdir(config.TEMPLATES_DIR) if _.endswith('.py')]
-        dictionary = {}
-
-        for fidx, file in enumerate(templates):
-            dictionary[fidx + 1] = str(file).replace('.py', '')
-            print(f"{fidx + 1}. {str(file).replace('.py', '')}")
-
-        print('# -------------------------- #')
-        print('')
-
-        selected = input(f'Select Craft Template [1 - {len(templates)}]: ')
-
-        try:
-            selected = int(selected)
-            if selected >= 1 and selected <= len(templates):
-
-                print('')
-                print(f'Loading {dictionary[selected]}')
-                sys.path.append(os.getcwd())            
-                return importlib.import_module(f'{config.TEMPLATES_DIR}.{dictionary[selected]}')
-
-            else:
-                raise Exception('Index Out Of Range.')
-
-        except Exception as e:
-            print(e)
-            win32gui.MessageBox(0, "模板库文件读取失败", "Error", 0)
-
-    else:
-        win32gui.MessageBox(0, "模板库文件不存在", "Error", 0)
-
+#GUI
+import bin.gui as GUI
 
 #先增幅，后改造
 class Worker:
-
     def __init__(self) -> None:
+        # 是否持续洗
         self.fever_mode  = False
+        self.roll_loop_lock_F = threading.Lock()
+        self.roll_loop_thread = threading.Thread(target=self.roll_loop)
+        self.roll_loop_lock_F.acquire()
+        self.roll_loop_thread.start()
+        # 上一个物品的详情
         self.last_info   = ''
+        # 所有模板
+        self.templates = {}
+        # 所选择模板
         self.filter_func = None
+        # 监听键盘事件
+        self.listener = keyboard.Listener(on_press=self.onpress_callback)
+        # 控制键盘
+        self.key_ctrl = keyboard.Controller()
+        # 控制鼠标
+        self.mouse_ctrl = mouse.Controller()
+        # 启动GUI
+        templates_name=self.load_template()
+        self.gui=GUI.GUI(templates_name)
+        self.gui_Thread=threading.Thread(target=self.gui.gui)
+        self.gui_Thread.start()
+
+    def load_template(self):
+        print('\n# -------------------------- #\n加载 Craft 模板 ...\n')
+
+        if os.path.exists(config.TEMPLATES_DIR):
+            templates_name = [_ for _ in os.listdir(config.TEMPLATES_DIR) if _.endswith('.py')]
+            templates_name = [_.replace(".py", "") for _ in templates_name]
+            print(templates_name)
+
+            print('\n# -------------------------- #\n')
+
+            try:
+                sys.path.append(os.getcwd())
+                for template_name in templates_name:
+                    self.templates[template_name] = importlib.import_module(f'{config.TEMPLATES_DIR}.{template_name}')
+
+            except Exception as e:
+                print(e)
+                win32gui.MessageBox(0, "模板库文件读取失败", "Error", 0)
+
+        else:
+            win32gui.MessageBox(0, "模板库不存在", "Error", 0)
+
+        return templates_name
+
+    def reload(self):
+        print('POE - Auto Craft Ready to Rool.')
+        self.filter_func = self.templates[self.gui.mode.get()].filter
+        print('\nPress "insert" to craft item once, press "home" to craft until finish, press "end" to rechoose\n')
+
+    def copy(self):
+        self.key_ctrl.press(keyboard.Key.alt_l)
+        #需要等待游戏响应按键并显示物品详情
+        sleep(config.KEYBOARD_DELAY)
+        self.key_ctrl.press(keyboard.Key.ctrl_l)
+        self.key_ctrl.press('c')
+        self.key_ctrl.release('c')
+        self.key_ctrl.release(keyboard.Key.ctrl_l)
+        self.key_ctrl.release(keyboard.Key.alt_l)
+        sleep(config.KEYBOARD_DELAY)
+
+    def safe_paste(self):
+        got_data = False
+        while not got_data:
+            try:
+                win32clipboard.OpenClipboard()
+                data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
+                win32clipboard.CloseClipboard()
+                got_data = True
+
+            except Exception as e:
+                pass
+        return data
+
+    def safe_clear(self):
+        clear = False
+        while not clear:
+            try:
+                win32clipboard.OpenClipboard()
+                win32clipboard.SetClipboardText('')
+                win32clipboard.CloseClipboard()
+                clear = True
+
+            except Exception as e:
+                pass
 
     #left click
     def send_mouse_click_left(self):
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,0, 0, 0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0)
+        self.mouse_ctrl.click(mouse.Button.left,1)
+        sleep(config.MOUSE_DELAY)
 
     #right click
     def send_mouse_click_right(self):
-        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN,0, 0, 0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP,0, 0, 0)
+        self.mouse_ctrl.click(mouse.Button.right,1)
+        sleep(config.MOUSE_DELAY)
+
+    def set_mouse(self,x,y):
+        self.mouse_ctrl.position=(x,y)
+        sleep(config.MOUSE_DELAY)
 
     def get_item(self,x,y):
-        isSelect = False
-        while win32api.GetCursorPos()!=(x,y):
-            win32api.SetCursorPos((x,y))
-            sleep(config.MOUSE_DELAY)
-        # item_info=safe_paste()
-        # func(item_info)
+        self.set_mouse(x,y)
         self.send_mouse_click_right()
-        sleep(config.MOUSE_DELAY)
 
     def get_Currency(self,currency):
         self.get_item(config.location[currency][0],config.location[currency][1])
 
     def use_Currency(self):
-        while win32api.GetCursorPos()!=(config.location["Item"][0],config.location["Item"][1]):
-            win32api.SetCursorPos((config.location["Item"][0],config.location["Item"][1]))
-            sleep(config.MOUSE_DELAY)
-            # item_info=safe_paste()
-            # isSelect = self.item_func(item_info)
+        self.set_mouse(config.location["Item"][0],config.location["Item"][1])
         self.send_mouse_click_left()
-        sleep(config.MOUSE_DELAY)
-
-
 
     def roll(self):
-        safe_clear()
-        sleep(config.ROLL_DELAY)
-        send_copy_singal()
-        item_info = safe_paste()
+        self.safe_clear()
+        self.copy()
+        item_info = self.safe_paste()
 
         if item_info == self.last_info or item_info == '': return
         isCrafted,Currency = self.filter_func(item_info)
@@ -163,60 +157,47 @@ class Worker:
 
         self.last_info = item_info
 
-def onpress_callback(key: keyboard.KeyCode):
+    def roll_loop(self):
+        while True:
+            if self.fever_mode == False:
+                self.roll_loop_lock_F.acquire()
+                self.fever_mode = True
+                self.roll_loop_lock_F.release()
+            self.roll()
+            
+    def onpress_callback(self,key: keyboard.KeyCode):
+        print(key)
+        try:
+            if key == keyboard.Key.insert:
+                self.roll()
 
-    try:
-        if key == keyboard.Key.end: 
-            sys.exit(0)
-        if key == keyboard.Key.insert:
-            worker.roll()
+            if key == keyboard.Key.end:
+                if self.fever_mode == True:
+                    self.roll_loop_lock_F.acquire()
+                    self.fever_mode = False
+                    print('Auto Craft Mode End.')
+                self.reload()
 
-    except Exception as e:
-        print(e)
+            if key == keyboard.Key.home:
+                if self.fever_mode == True:
+                    self.roll_loop_lock_F.acquire()
+                    self.fever_mode = False
+                    print('Auto Craft Mode End.')
+                else:
+                    self.last_info  = ''
+                    self.roll_loop_lock_F.release()
+                    print('Ready to Craft Equipment.')
+            
+        except Exception as e:
+            print(e)
 
-   
-
-    if key == keyboard.Key.insert and worker.fever_mode == True:
-        win32api.keybd_event(0x2D, 0, 0, 0) # press down space  
-
-
-def onrelease_callback(key: keyboard.KeyCode):
-
-    try:
-        if key in {keyboard.Key.home}:
-            if worker.fever_mode is True:
-                worker.fever_mode = False
-                print('Auto Craft Mode End.')
-            else:
-                worker.fever_mode = True
-                worker.last_info  = ''
-                print('Ready to Craft Equipment.')
-                sleep(1)
-                win32api.keybd_event(0x2D, 0, 0, 0) # press down space  
-
-    except Exception as e:
-        print(e)
-
+    def run(self):
+        self.gui.lock.acquire()
+        self.reload()
+        self.gui.lock.release()
+        self.listener.run()
 
 worker = Worker()
+worker.run()
 
-
-print('POE - Auto Craft Ready to Rool.')
-
-template           = load_template()
-
-worker.filter_func = template.filter
-
-
-
-print('')
-
-print('Press "Space" to craft item once, press "Capslock" to craft until finish.')
-
-
-
-hook = keyboard.Listener
-
-with hook(on_press=onpress_callback, on_release=onrelease_callback, suppress=False) as listener:
-
-    listener.join()
+#改用阻塞模式读取按键并运行
