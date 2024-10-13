@@ -6,22 +6,28 @@ from pynput import keyboard
 import threading
 
 class GUI:
-    def __init__(self,modes):
+    def __init__(self,modes=None):
         # 线程锁
-        self.lock = threading.Lock()
-        self.lock.acquire()
-        self.isFirst=True
+        # self.lock = threading.Lock()
+        # self.lock.acquire()
+        # self.isFirst=True
         self.modes=modes
+        self.key_ctrl=keyboard.Controller()
 
+    def get_information(self):
+        return [self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), self.permission_combobox_prefix.get(),self.permission_combobox_suffix.get()]
         
     def isLegal(self):
         return self.mode.get()!='' and (self.entry_prefix.get()!='' or self.entry_suffix.get()!='')
     
+    def text_output(self,string):
+        self.text_box.insert(tk.END,string)
+    
     def on_button_click(self):
-        if self.isFirst:
-            self.isFirst=False
-            self.lock.release()
-        keyboard.Controller.press(keyboard.Key.end)
+        # if self.isFirst:
+        #     self.isFirst=False
+        #     self.lock.release()
+        self.key_ctrl.press(keyboard.Key.end)
         # self.text_box.insert(tk.END,self.entry_prefix.get()+self.entry_suffix.get()+\
                             # self.permission_combobox_prefix.get()+self.permission_combobox_suffix.get())
     def gui(self):

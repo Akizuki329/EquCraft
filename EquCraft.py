@@ -3,11 +3,9 @@ import importlib
 import os
 import sys
 
-from pynput import keyboard,mouse
 import win32gui
 import threading
-import win32clipboard
-from time import sleep
+from pynput import keyboard
 
 #配置文件
 import bin.config as config
@@ -15,13 +13,16 @@ import bin.config as config
 #GUI
 import bin.gui as GUI
 
+#鼠标键盘操作
+import bin.operation as operation
+
 #先增幅，后改造
 class Worker:
     def __init__(self) -> None:
         # 是否持续洗
-        self.fever_mode  = False
         self.roll_loop_lock_F = threading.Lock()
         self.roll_loop_thread = threading.Thread(target=self.roll_loop)
+        self.fever_mode  = False
         self.roll_loop_lock_F.acquire()
         self.roll_loop_thread.start()
         # 上一个物品的详情
@@ -29,18 +30,18 @@ class Worker:
         # 所有模板
         self.templates = {}
         # 所选择模板
+        self.filter_mode = None
         self.filter_func = None
-        # 监听键盘事件
-        self.listener = keyboard.Listener(on_press=self.onpress_callback)
-        # 控制键盘
-        self.key_ctrl = keyboard.Controller()
-        # 控制鼠标
-        self.mouse_ctrl = mouse.Controller()
+        # 模板合法性
+        self.filter_func_isLegal = False
         # 启动GUI
         templates_name=self.load_template()
         self.gui=GUI.GUI(templates_name)
         self.gui_Thread=threading.Thread(target=self.gui.gui)
         self.gui_Thread.start()
+        # 初始化控制类
+        self.operate = operation.operation(self.onpress_callback)
+        self.operate.listen_run()
 
     def load_template(self):
         print('\n# -------------------------- #\n加载 Craft 模板 ...\n')
@@ -68,74 +69,35 @@ class Worker:
 
     def reload(self):
         print('POE - Auto Craft Ready to Rool.')
-        self.filter_func = self.templates[self.gui.mode.get()].filter
+        try:
+            self.filter_mode = self.templates[self.gui.mode.get()]
+            self.filter_func = self.filter_mode.filter
+            if self.filter_mode.use_message_bool():
+                self.filter_mode.set(self.gui.get_information())
+            self.filter_func_isLegal = True
+        except Exception as e:
+            self.filter_func_isLegal == False
+            print(e)
+            print("reload():模板载入失败")
+
         print('\nPress "insert" to craft item once, press "home" to craft until finish, press "end" to rechoose\n')
 
-    def copy(self):
-        self.key_ctrl.press(keyboard.Key.alt_l)
-        #需要等待游戏响应按键并显示物品详情
-        sleep(config.KEYBOARD_DELAY)
-        self.key_ctrl.press(keyboard.Key.ctrl_l)
-        self.key_ctrl.press('c')
-        self.key_ctrl.release('c')
-        self.key_ctrl.release(keyboard.Key.ctrl_l)
-        self.key_ctrl.release(keyboard.Key.alt_l)
-        sleep(config.KEYBOARD_DELAY)
-
-    def safe_paste(self):
-        got_data = False
-        while not got_data:
-            try:
-                win32clipboard.OpenClipboard()
-                data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
-                win32clipboard.CloseClipboard()
-                got_data = True
-
-            except Exception as e:
-                pass
-        return data
-
-    def safe_clear(self):
-        clear = False
-        while not clear:
-            try:
-                win32clipboard.OpenClipboard()
-                win32clipboard.SetClipboardText('')
-                win32clipboard.CloseClipboard()
-                clear = True
-
-            except Exception as e:
-                pass
-
-    #left click
-    def send_mouse_click_left(self):
-        self.mouse_ctrl.click(mouse.Button.left,1)
-        sleep(config.MOUSE_DELAY)
-
-    #right click
-    def send_mouse_click_right(self):
-        self.mouse_ctrl.click(mouse.Button.right,1)
-        sleep(config.MOUSE_DELAY)
-
-    def set_mouse(self,x,y):
-        self.mouse_ctrl.position=(x,y)
-        sleep(config.MOUSE_DELAY)
-
     def get_item(self,x,y):
-        self.set_mouse(x,y)
-        self.send_mouse_click_right()
+        self.operate.set_mouse(x,y)
+        self.operate.send_mouse_click_right()
 
     def get_Currency(self,currency):
         self.get_item(config.location[currency][0],config.location[currency][1])
 
     def use_Currency(self):
-        self.set_mouse(config.location["Item"][0],config.location["Item"][1])
-        self.send_mouse_click_left()
+        self.operate.set_mouse(config.location["Item"][0],config.location["Item"][1])
+        self.operate.send_mouse_click_left()
 
     def roll(self):
-        self.safe_clear()
-        self.copy()
-        item_info = self.safe_paste()
+        if self.filter_func_isLegal == False:
+            return
+
+        item_info = self.operate.getCliboardData()
 
         if item_info == self.last_info or item_info == '': return
         isCrafted,Currency = self.filter_func(item_info)
@@ -164,40 +126,41 @@ class Worker:
                 self.fever_mode = True
                 self.roll_loop_lock_F.release()
             self.roll()
+    
+    def roll_loop_begin(self):
+        if self.fever_mode==False:
+            self.roll_loop_lock_F.release()
+    
+    def roll_loop_end(self):
+        print(2)
+        if self.fever_mode==True:
+            print(1)
+            self.roll_loop_lock_F.acquire()
+            self.fever_mode=False
             
     def onpress_callback(self,key: keyboard.KeyCode):
-        print(key)
+        # print(key)
         try:
             if key == keyboard.Key.insert:
                 self.roll()
 
             if key == keyboard.Key.end:
                 if self.fever_mode == True:
-                    self.roll_loop_lock_F.acquire()
-                    self.fever_mode = False
+                    self.roll_loop_end()
                     print('Auto Craft Mode End.')
                 self.reload()
 
             if key == keyboard.Key.home:
                 if self.fever_mode == True:
-                    self.roll_loop_lock_F.acquire()
-                    self.fever_mode = False
+                    self.roll_loop_end()
                     print('Auto Craft Mode End.')
                 else:
                     self.last_info  = ''
-                    self.roll_loop_lock_F.release()
+                    self.roll_loop_begin()
                     print('Ready to Craft Equipment.')
             
         except Exception as e:
             print(e)
 
-    def run(self):
-        self.gui.lock.acquire()
-        self.reload()
-        self.gui.lock.release()
-        self.listener.run()
-
-worker = Worker()
-worker.run()
-
+Worker()
 #改用阻塞模式读取按键并运行

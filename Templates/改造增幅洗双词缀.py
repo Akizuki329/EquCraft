@@ -3,9 +3,17 @@ import Templates.words.words as wd
 
 print('【改造增幅洗双词缀】 Load Successfully')
 
-#判断是否合法
-if len(wd.word_prefix)<1 and len(wd.word_suffix)<1:   
-    raise Exception('不合法的词缀数量')
+#是否使用gui所传入信息，False为不需要
+#和set配套使用
+#后续可使用抽象类，用重写的方式构造模板
+#失败应抛出异常
+def use_message_bool():
+    return False
+def set():
+    if len(wd.word_prefix)<1 and len(wd.word_suffix)<1:   
+        raise Exception('不合法的词缀数量')
+
+
 
 def filter(item: str) -> bool:
     #炽焰 六翼天使 六翼天使 
