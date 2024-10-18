@@ -56,7 +56,7 @@ class Worker:
             try:
                 sys.path.append(os.getcwd())
                 for template_name in templates_name:
-                    self.templates[template_name] = importlib.import_module(f'{config.TEMPLATES_DIR}.{template_name}')
+                    self.templates[template_name] = importlib.import_module(f'{config.TEMPLATES_DIR}.{template_name}').Template()
 
             except Exception as e:
                 print(e)
@@ -97,9 +97,13 @@ class Worker:
         if self.filter_func_isLegal == False:
             return
 
+        # 获取剪切板中信息
         item_info = self.operate.getCliboardData()
+        print(item_info)
 
-        if item_info == self.last_info or item_info == '': return
+        if item_info == self.last_info or item_info == '': 
+            self.roll_loop_end()
+            return
         isCrafted,Currency = self.filter_func(item_info)
 
         try:
@@ -132,9 +136,7 @@ class Worker:
             self.roll_loop_lock_F.release()
     
     def roll_loop_end(self):
-        print(2)
         if self.fever_mode==True:
-            print(1)
             self.roll_loop_lock_F.acquire()
             self.fever_mode=False
             
