@@ -7,10 +7,15 @@ class AbstractTemplate(ABC):
     @abstractmethod
     def introduction(self):
         pass
+
+    @abstractmethod
+    def filter_init(self):
+        pass
     
     def set(self,information):
         try:
             self.__set_detail(information)
+            self.filter_init()
         except Exception as e:
             print(e)
         
@@ -29,13 +34,20 @@ class AbstractTemplate(ABC):
         pass
     
     # -1表示不符合要求，0表示词条不足，1表示符合要求
-    def situation(self,words_useful_cnt,words_curr_cnt,words_need_cnt,words_max,allowed_other_words):
-        # 出现杂词
+    def situation(self,words_useful_cnt,words_curr_cnt,words_need_cnt,words_curr_max,words_max,allowed_other_words):
+        # print(allowed_other_words)
+        # print(words_useful_cnt)
+        # print(words_curr_cnt)
+        # print(type(allowed_other_words))
+        # 不允许杂词情况下出现杂词
         if allowed_other_words==False and words_useful_cnt<words_curr_cnt:
             return -1
+        # 剩余词缀空位不足
+        if words_useful_cnt+words_max-words_curr_cnt<words_need_cnt:
+            return -2
         # 词缀数量达到上限，但是仍未达到要求
-        if words_useful_cnt<words_need_cnt and words_curr_cnt>=words_max:
-            return -1
+        if words_useful_cnt<words_need_cnt and words_curr_cnt>=words_curr_max:
+            return 2
         # 所需词缀数量不足
         if words_useful_cnt<words_need_cnt:
             return 0

@@ -18,7 +18,7 @@ class GUI:
     def get_information(self):
         try:
             return [self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), \
-                    self.permission_combobox_prefix.get(),self.permission_combobox_suffix.get()\
+                    self.permission_var_prefix.get(),self.permission_var_suffix.get()\
                         ,int(self.entry_prefix_need.get()),int(self.entry_suffix_need.get())]
         except Exception as e:
             print("gui中不合法的输入")
@@ -74,25 +74,25 @@ class GUI:
         self.entry_suffix.pack(pady=5)
 
 
-        # 右侧下拉式菜单
-        permissions = [False, True]
-
+        # 右侧勾选菜单
         middle_frame = tk.Frame(main_frame)
         middle_frame.grid(row=0, column=1, padx=10, pady=10)
 
-        permission_label_prefix = tk.Label(middle_frame, text="是否允许含有杂词:")
+        # 允许含有杂词的选择
+        self.permission_var_prefix = tk.BooleanVar()
+        permission_label_prefix = tk.Label(middle_frame, text="是否允许含有杂词（前缀）:")
         permission_label_prefix.pack(pady=5)
 
-        self.permission_combobox_prefix = ttk.Combobox(middle_frame, values=permissions)
-        self.permission_combobox_prefix.pack(pady=5)
-        self.permission_combobox_prefix.current(0)  # 设置默认值
+        self.permission_checkbox_prefix = tk.Checkbutton(middle_frame, text="是", variable=self.permission_var_prefix)
+        self.permission_checkbox_prefix.pack(pady=5)
 
-        permission_label_suffix = tk.Label(middle_frame, text="是否允许含有杂词:")
+        # 允许含有杂词的选择
+        self.permission_var_suffix = tk.BooleanVar()
+        permission_label_suffix = tk.Label(middle_frame, text="是否允许含有杂词（后缀）:")
         permission_label_suffix.pack(pady=10)
 
-        self.permission_combobox_suffix = ttk.Combobox(middle_frame, values=permissions)
-        self.permission_combobox_suffix.pack(pady=5)
-        self.permission_combobox_suffix.current(0)  # 设置默认值
+        self.permission_checkbox_suffix = tk.Checkbutton(middle_frame, text="是", variable=self.permission_var_suffix)
+        self.permission_checkbox_suffix.pack(pady=5)
 
         # 右侧输入框
         right_frame = tk.Frame(main_frame)
