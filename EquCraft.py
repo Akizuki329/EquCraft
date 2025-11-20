@@ -164,5 +164,6 @@ class Worker:
         except Exception as e:
             print(e)
 
+
 Worker()
 #改用阻塞模式读取按键并运行
