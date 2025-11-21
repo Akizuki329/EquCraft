@@ -28,9 +28,9 @@ class GUI:
                 self.text_box.delete("1.0", tk.END)
                 self.text_box.insert(tk.END,
                     f"模式: {info[0]}\n"
+                    f"前缀允许杂词: {info[3]}, 前缀所需词条数: {info[5]}\n后缀允许杂词: {info[4]}, 后缀所需词条数: {info[6]}\n"
                     f"前缀: {info[1]}\n"
                     f"后缀: {info[2]}\n"
-                    f"前缀允许杂词: {info[3]}, 前缀所需词条数: {info[5]}\n, 后缀允许杂词: {info[4]}\n, 后缀所需词条数: {info[6]}\n"
                 )
             return info
         except Exception as e:
@@ -54,7 +54,7 @@ class GUI:
         # 创建主窗口
         root = tk.Tk()
         root.title("EquCraft")
-        root.geometry("530x400")  # 设置窗口初始大小
+        root.geometry("530x420")  # 设置窗口初始大小
         root.resizable(False, False)  # 禁止调整窗口大小
 
         # 创建居中的下拉式菜单
@@ -127,8 +127,8 @@ class GUI:
         button = tk.Button(root, text="确定", command=self.on_button_click)
         button.pack(pady=20)
 
-        self.text_box = tk.Text(root, height=5, width=50)
-        self.text_box.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
+        self.text_box = tk.Text(root, height=15, width=50)
+        self.text_box.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True, pady=10)
         
         # 运行主循环left_frame
         root.mainloop()
