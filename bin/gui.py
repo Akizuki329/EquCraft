@@ -17,9 +17,22 @@ class GUI:
     # return [模式选择，前缀词条，后缀词条，前缀是否允许杂词，后缀是否允许杂词]
     def get_information(self):
         try:
-            return [self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), \
+            def to_int_or_zero(entry):
+                v = entry.get()
+                return int(v) if str(v).strip() != "" else 0
+            
+            info=[self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), \
                     self.permission_var_prefix.get(),self.permission_var_suffix.get()\
-                        ,int(self.entry_prefix_need.get()),int(self.entry_suffix_need.get())]
+                        ,to_int_or_zero(self.entry_prefix_need),to_int_or_zero(self.entry_suffix_need)]
+            if hasattr(self, "text_box"):
+                self.text_box.delete("1.0", tk.END)
+                self.text_box.insert(tk.END,
+                    f"模式: {info[0]}\n"
+                    f"前缀: {info[1]}\n"
+                    f"后缀: {info[2]}\n"
+                    f"前缀允许杂词: {info[3]}, 前缀所需词条数: {info[5]}\n, 后缀允许杂词: {info[4]}\n, 后缀所需词条数: {info[6]}\n"
+                )
+            return info
         except Exception as e:
             print("gui中不合法的输入")
 
