@@ -1,7 +1,6 @@
 #第三方库
 import importlib
-import os
-import sys
+import os, sys, ctypes
 
 import win32gui
 import threading
@@ -165,5 +164,20 @@ class Worker:
             print(e)
 
 
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+    
+if not is_admin():
+    # 重新以管理员权限启动当前 Python 解释器并传入当前脚本与参数
+    params = " ".join(['"{}"'.format(arg) for arg in sys.argv])
+    # 注意：第一个参数需为脚本路径
+    script = os.path.abspath(sys.argv[0])
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {" ".join(sys.argv[1:])}', None, 1)
+    sys.exit(0)
+    
 Worker()
 #改用阻塞模式读取按键并运行
