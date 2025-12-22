@@ -41,16 +41,21 @@ class AbstractTemplate(ABC):
         # print(type(allowed_other_words))
         # 不允许杂词情况下出现杂词
         if allowed_other_words==False and words_useful_cnt<words_curr_cnt:
+            # print("-1")
             return -1
         # 剩余词缀空位不足
         if words_useful_cnt+words_max-words_curr_cnt<words_need_cnt:
+            # print("-2")
             return -2
         # 词缀数量达到上限，但是仍未达到要求
         if words_useful_cnt<words_need_cnt and words_curr_cnt>=words_curr_max:
+            # print("2")
             return 2
         # 所需词缀数量不足
         if words_useful_cnt<words_need_cnt:
+            # print("0")
             return 0
         # 满足要求
+        # print("1")
         return 1
         
