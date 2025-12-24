@@ -17,9 +17,22 @@ class GUI:
     # return [模式选择，前缀词条，后缀词条，前缀是否允许杂词，后缀是否允许杂词]
     def get_information(self):
         try:
-            return [self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), \
-                    self.permission_combobox_prefix.get(),self.permission_combobox_suffix.get()\
-                        ,int(self.entry_prefix_need.get()),int(self.entry_suffix_need.get())]
+            def to_int_or_zero(entry):
+                v = entry.get()
+                return int(v) if str(v).strip() != "" else 0
+            
+            info=[self.mode.get(), self.entry_prefix.get(), self.entry_suffix.get(), \
+                    self.permission_var_prefix.get(),self.permission_var_suffix.get()\
+                        ,to_int_or_zero(self.entry_prefix_need),to_int_or_zero(self.entry_suffix_need)]
+            if hasattr(self, "text_box"):
+                self.text_box.delete("1.0", tk.END)
+                self.text_box.insert(tk.END,
+                    f"模式: {info[0]}\n"
+                    f"前缀允许杂词: {info[3]}, 前缀所需词条数: {info[5]}\n后缀允许杂词: {info[4]}, 后缀所需词条数: {info[6]}\n"
+                    f"前缀: {info[1]}\n"
+                    f"后缀: {info[2]}\n"
+                )
+            return info
         except Exception as e:
             print("gui中不合法的输入")
 
@@ -41,7 +54,7 @@ class GUI:
         # 创建主窗口
         root = tk.Tk()
         root.title("EquCraft")
-        root.geometry("530x400")  # 设置窗口初始大小
+        root.geometry("530x420")  # 设置窗口初始大小
         root.resizable(False, False)  # 禁止调整窗口大小
 
         # 创建居中的下拉式菜单
@@ -74,25 +87,25 @@ class GUI:
         self.entry_suffix.pack(pady=5)
 
 
-        # 右侧下拉式菜单
-        permissions = [False, True]
-
+        # 右侧勾选菜单
         middle_frame = tk.Frame(main_frame)
         middle_frame.grid(row=0, column=1, padx=10, pady=10)
 
-        permission_label_prefix = tk.Label(middle_frame, text="是否允许含有杂词:")
+        # 允许含有杂词的选择
+        self.permission_var_prefix = tk.BooleanVar()
+        permission_label_prefix = tk.Label(middle_frame, text="是否允许含有杂词（前缀）:")
         permission_label_prefix.pack(pady=5)
 
-        self.permission_combobox_prefix = ttk.Combobox(middle_frame, values=permissions)
-        self.permission_combobox_prefix.pack(pady=5)
-        self.permission_combobox_prefix.current(0)  # 设置默认值
+        self.permission_checkbox_prefix = tk.Checkbutton(middle_frame, text="是", variable=self.permission_var_prefix)
+        self.permission_checkbox_prefix.pack(pady=5)
 
-        permission_label_suffix = tk.Label(middle_frame, text="是否允许含有杂词:")
+        # 允许含有杂词的选择
+        self.permission_var_suffix = tk.BooleanVar()
+        permission_label_suffix = tk.Label(middle_frame, text="是否允许含有杂词（后缀）:")
         permission_label_suffix.pack(pady=10)
 
-        self.permission_combobox_suffix = ttk.Combobox(middle_frame, values=permissions)
-        self.permission_combobox_suffix.pack(pady=5)
-        self.permission_combobox_suffix.current(0)  # 设置默认值
+        self.permission_checkbox_suffix = tk.Checkbutton(middle_frame, text="是", variable=self.permission_var_suffix)
+        self.permission_checkbox_suffix.pack(pady=5)
 
         # 右侧输入框
         right_frame = tk.Frame(main_frame)
@@ -114,8 +127,8 @@ class GUI:
         button = tk.Button(root, text="确定", command=self.on_button_click)
         button.pack(pady=20)
 
-        self.text_box = tk.Text(root, height=5, width=50)
-        self.text_box.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
+        self.text_box = tk.Text(root, height=15, width=50)
+        self.text_box.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True, pady=10)
         
         # 运行主循环left_frame
         root.mainloop()
